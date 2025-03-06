@@ -3,6 +3,7 @@ package com.example.chatappclient
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,10 +17,15 @@ import androidx.navigation.compose.composable
 import com.example.chatappclient.navigation.NavGraph
 import com.example.chatappclient.ui.theme.ChatAppTheme
 import com.example.chatappclient.viewmodel.SettingsViewModel
+import com.example.chatappclient.viewmodel.ChatViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val chatViewModel: ChatViewModel by viewModels()
+        chatViewModel.setContext(this)
+
         setContent {
             val settingsViewModel: SettingsViewModel = viewModel()
             val isDarkMode by settingsViewModel.isDarkMode.collectAsState()

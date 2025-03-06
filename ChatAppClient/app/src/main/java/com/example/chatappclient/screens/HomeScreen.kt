@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -21,6 +22,9 @@ import com.example.chatappclient.model.User
 import com.example.chatappclient.viewmodel.SettingsViewModel
 import com.example.chatappclient.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
+import java.text.SimpleDateFormat
+import java.util.*
+import androidx.compose.foundation.background
 
 private val LightBlue = Color(0xFF90CAF9)
 
@@ -113,50 +117,62 @@ fun HomeScreen(
                 singleLine = true
             )
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (error != null) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(error ?: "Unknown error occurred")
-                        Button(onClick = { userViewModel.refreshUsers() }) {
-                            Text("Retry")
-                        }
-                    }
-                }
-            } else if (users.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("No users found")
-                        Button(onClick = { userViewModel.refreshUsers() }) {
-                            Text("Refresh")
-                        }
-                    }
-                }
-            } else {
-                LazyColumn {
-                    items(filteredUsers) { user ->
-                        UserItem(
-                            user = user,
-                            onClick = { onUserClick(user) }
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when {
+                    isLoading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
                         )
+                    }
+                    error != null -> {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(error ?: "Unknown error occurred")
+                            Button(onClick = { userViewModel.refreshUsers() }) {
+                                Text("Retry")
+                            }
+                        }
+                    }
+                    filteredUsers.isEmpty() && searchQuery.text.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("No users found")
+                            Button(onClick = { userViewModel.refreshUsers() }) {
+                                Text("Refresh")
+                            }
+                        }
+                    }
+                    filteredUsers.isEmpty() && searchQuery.text.isNotEmpty() -> {
+                        Text(
+                            "No users match your search",
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(16.dp)
+                        )
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(filteredUsers) { user ->
+                                UserItem(
+                                    user = user,
+                                    onClick = { onUserClick(user) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -201,7 +217,9 @@ fun UserItem(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
+        color = if (user.lastMessage?.isRead == false) 
+            MaterialTheme.colorScheme.primaryContainer 
+        else MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp,
         onClick = onClick
     ) {
@@ -222,17 +240,62 @@ fun UserItem(
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = "${user.firstName} ${user.lastName}",
                     style = MaterialTheme.typography.bodyLarge
                 )
-                Text(
+                user.lastMessage?.let { lastMessage ->
+                    Text(
+                        text = lastMessage.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } ?: Text(
                     text = user.email,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
+
+            if (user.lastMessage != null) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = formatTimestamp(user.lastMessage.timestamp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    if (!user.lastMessage.isRead) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    
+    return when {
+        diff < 60_000 -> "Just now" // less than 1 minute
+        diff < 3600_000 -> "${diff / 60_000}m" // less than 1 hour
+        diff < 86400_000 -> "${diff / 3600_000}h" // less than 24 hours
+        else -> SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(timestamp))
     }
 } 
