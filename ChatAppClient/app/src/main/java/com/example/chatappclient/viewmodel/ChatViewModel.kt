@@ -6,7 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatappclient.model.LastMessage
 import com.example.chatappclient.model.Message
+import com.example.chatappclient.model.MessageViolation
 import com.example.chatappclient.model.User
+import com.example.chatappclient.service.WarningService
+import com.example.chatappclient.utils.MessageFilter
 import com.example.chatappclient.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -26,9 +29,24 @@ class ChatViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private val warningService = WarningService()
+    private val _warningMessage = MutableStateFlow<String?>(null)
+    val warningMessage: StateFlow<String?> = _warningMessage
+
     private val firestore = FirebaseFirestore.getInstance()
     private val currentUser = FirebaseAuth.getInstance().currentUser
     private var context: Context? = null
+
+    init {
+        viewModelScope.launch {
+            try {
+                MessageFilter.initialize()
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error initializing MessageFilter", e)
+                _error.value = "Failed to initialize message filter: ${e.message}"
+            }
+        }
+    }
 
     fun setContext(context: Context) {
         this.context = context
@@ -60,6 +78,9 @@ class ChatViewModel : ViewModel() {
                             // Check for new messages and show notifications
                             messageList.firstOrNull()?.let { latestMessage ->
                                 if (latestMessage.senderId != currentUser?.uid) {
+                                    // Mark message as read since we're in the chat
+                                    markMessagesAsRead(otherUserId)
+                                    // Still show notification in case app is in background
                                     showNotificationForNewMessage(latestMessage)
                                 }
                             }
@@ -76,7 +97,16 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 currentUser?.let { user ->
+                    // Check if user is blocked
+                    if (warningService.isUserBlocked(user.uid)) {
+                        _warningMessage.value = "You are temporarily blocked from sending messages due to violations"
+                        return@launch
+                    }
+
                     val chatId = getChatId(receiverId)
+                    
+                    // Check message for violations
+                    val violations = MessageFilter.checkMessage(text)
                     
                     val message = Message(
                         id = firestore.collection("chats").document().id,
@@ -86,7 +116,40 @@ class ChatViewModel : ViewModel() {
                         timestamp = System.currentTimeMillis()
                     )
 
-                    // Send the message
+                    // Handle violations if found
+                    if (violations.hasViolation()) {
+                        val messageViolation = MessageViolation(
+                            messageId = message.id,
+                            senderId = user.uid,
+                            receiverId = receiverId,
+                            message = text,
+                            hasBullyWords = violations.hasBullyWords,
+                            hasSexualHarassmentWords = violations.hasSexualHarassmentWords,
+                            hasBadWords = violations.hasBadWords
+                        )
+
+                        // Check if message should be blocked
+                        val allowMessage = warningService.handleViolation(messageViolation)
+                        
+                        if (!allowMessage) {
+                            _warningMessage.value = "Your message was blocked due to inappropriate content"
+                            return@launch
+                        }
+
+                        // Store violation in Firebase
+                        firestore.collection("violations")
+                            .document(message.id)
+                            .set(messageViolation.toMap())
+                            .await()
+
+                        // Show warning to user
+                        val warningCount = warningService.getViolationCount(user.uid)
+                        _warningMessage.value = "Warning: Your message contains inappropriate content. Warning ${warningCount}/${WarningService.MAX_WARNINGS}"
+                        
+                        Log.w("ChatViewModel", "Message contains violations: $violations")
+                    }
+
+                    // Send the message if not blocked
                     firestore.collection("chats")
                         .document(chatId)
                         .collection("messages")
@@ -167,8 +230,58 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    fun markMessagesAsRead(otherUserId: String) {
+        viewModelScope.launch {
+            try {
+                val currentUserId = currentUser?.uid ?: return@launch
+                
+                // Create a LastMessage object with isRead set to true
+                val lastMessageUpdate = mapOf(
+                    "lastMessage.isRead" to true
+                )
+
+                // Get both users' data
+                val currentUserDoc = firestore.collection("users")
+                    .document(currentUserId)
+                    .get()
+                    .await()
+                
+                val otherUserDoc = firestore.collection("users")
+                    .document(otherUserId)
+                    .get()
+                    .await()
+
+                val currentUser = currentUserDoc.toObject(User::class.java)
+                val otherUser = otherUserDoc.toObject(User::class.java)
+
+                // Update current user's last message if it's from the other user
+                if (currentUser?.lastMessage?.senderId == otherUserId) {
+                    firestore.collection("users")
+                        .document(currentUserId)
+                        .update(lastMessageUpdate)
+                        .await()
+                }
+
+                // Update other user's last message if it's from the current user
+                if (otherUser?.lastMessage?.senderId == currentUserId) {
+                    firestore.collection("users")
+                        .document(otherUserId)
+                        .update(lastMessageUpdate)
+                        .await()
+                }
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error marking messages as read", e)
+            }
+        }
+    }
+
+    fun clearWarningMessage() {
+        _warningMessage.value = null
+    }
+
     override fun onCleared() {
         super.onCleared()
-        // Clean up any listeners if needed
+        // Clean up listeners
+        MessageFilter.cleanup()
     }
 } 

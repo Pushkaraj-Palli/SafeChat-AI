@@ -11,8 +11,43 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColorScheme = lightColorScheme()
-private val DarkColorScheme = darkColorScheme()
+private val LightColorScheme = lightColorScheme(
+    primary = LightPrimary,
+    primaryContainer = LightPrimaryVariant,
+    secondary = LightSecondary,
+    background = LightBackground,
+    surface = LightBackground,
+    surfaceVariant = LightReceivedBubble,
+    onPrimary = LightBackground,
+    onSecondary = LightTextPrimary,
+    onBackground = LightTextPrimary,
+    onSurface = LightTextPrimary,
+    onSurfaceVariant = LightTextSecondary,
+    error = LightError,
+    onError = LightBackground,
+    outline = LightDivider,
+    outlineVariant = LightDivider.copy(alpha = 0.5f),
+    scrim = LightTextPrimary.copy(alpha = 0.3f)
+)
+
+private val DarkColorScheme = darkColorScheme(
+    primary = DarkPrimary,
+    primaryContainer = DarkPrimaryVariant,
+    secondary = DarkSecondary,
+    background = DarkBackground,
+    surface = DarkBackground,
+    surfaceVariant = DarkReceivedBubble,
+    onPrimary = DarkTextPrimary,
+    onSecondary = DarkTextPrimary,
+    onBackground = DarkTextPrimary,
+    onSurface = DarkTextPrimary,
+    onSurfaceVariant = DarkTextSecondary,
+    error = DarkError,
+    onError = DarkTextPrimary,
+    outline = DarkDivider,
+    outlineVariant = DarkDivider.copy(alpha = 0.5f),
+    scrim = DarkTextPrimary.copy(alpha = 0.3f)
+)
 
 @Composable
 fun ChatAppTheme(

@@ -96,6 +96,4 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    // ML Model Loading
-    implementation ("com.microsoft.onnxruntime:onnxruntime-android:1.8.1")
 }

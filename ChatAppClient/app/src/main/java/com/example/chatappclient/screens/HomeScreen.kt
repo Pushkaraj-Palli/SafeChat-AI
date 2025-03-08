@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.chatappclient.model.User
+import com.example.chatappclient.ui.theme.*
 import com.example.chatappclient.viewmodel.SettingsViewModel
 import com.example.chatappclient.viewmodel.UserViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -27,6 +28,7 @@ import java.util.*
 import androidx.compose.foundation.background
 
 private val LightBlue = Color(0xFF90CAF9)
+private val HeaderRed = Color(0xFFFF0000)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +38,7 @@ fun HomeScreen(
     onUserClick: (User) -> Unit,
     userViewModel: UserViewModel = viewModel()
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var showMenu by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf(TextFieldValue()) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -52,16 +55,25 @@ fun HomeScreen(
     val filteredUsers = users.filter {
         it.displayName.contains(searchQuery.text, ignoreCase = true) ||
         it.email.contains(searchQuery.text, ignoreCase = true)
-    }
+    }.sortedWith(
+        compareByDescending<User> { user -> 
+            // First sort by unread messages
+            if (user.lastMessage?.isRead == false) 1 else 0
+        }.thenByDescending { user -> 
+            // Then by timestamp
+            user.lastMessage?.timestamp ?: 0
+        }
+    )
 
     Scaffold(
+        containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Chat App") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LightBlue,
-                    titleContentColor = Color.Black,
-                    actionIconContentColor = Color.Black
+                    containerColor = colorScheme.primary,
+                    titleContentColor = colorScheme.onPrimary,
+                    actionIconContentColor = colorScheme.onPrimary
                 ),
                 actions = {
                     IconButton(onClick = { userViewModel.refreshUsers() }) {
@@ -103,6 +115,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(colorScheme.background)
         ) {
             OutlinedTextField(
                 value = searchQuery,
@@ -110,11 +123,25 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                placeholder = { Text("Search users...") },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, "Search")
+                placeholder = { 
+                    Text(
+                        "Search users...",
+                        color = colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 },
-                singleLine = true
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        "Search",
+                        tint = colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                },
+                singleLine = true,
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    containerColor = colorScheme.surface,
+                    unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.12f),
+                    focusedBorderColor = colorScheme.primary
+                )
             )
 
             Box(
@@ -212,14 +239,18 @@ fun UserItem(
     user: User,
     onClick: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isUnread = user.lastMessage?.isRead == false && user.lastMessage.senderId != currentUserId
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
-        color = if (user.lastMessage?.isRead == false) 
-            MaterialTheme.colorScheme.primaryContainer 
-        else MaterialTheme.colorScheme.surface,
+        color = if (isUnread) 
+            colorScheme.primaryContainer.copy(alpha = 0.12f)
+        else colorScheme.surface,
         shadowElevation = 2.dp,
         onClick = onClick
     ) {
@@ -245,20 +276,21 @@ fun UserItem(
             ) {
                 Text(
                     text = "${user.firstName} ${user.lastName}",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colorScheme.onSurface
                 )
                 user.lastMessage?.let { lastMessage ->
                     Text(
                         text = lastMessage.text,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        color = colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 } ?: Text(
                     text = user.email,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
 
@@ -270,14 +302,14 @@ fun UserItem(
                     Text(
                         text = formatTimestamp(user.lastMessage.timestamp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        color = colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     if (!user.lastMessage.isRead) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
                                 .background(
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = AccentColor,
                                     shape = CircleShape
                                 )
                         )

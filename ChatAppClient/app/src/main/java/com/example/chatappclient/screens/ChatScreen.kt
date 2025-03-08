@@ -1,6 +1,7 @@
 package com.example.chatappclient.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,14 +24,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.chatappclient.model.Message
 import com.example.chatappclient.model.User
+import com.example.chatappclient.ui.theme.*
 import com.example.chatappclient.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.*
-
-private val LightBlue = Color(0xFF90CAF9)
-private val SentMessageColor = Color(0xFF2196F3)
-private val ReceivedMessageColor = Color(0xFFE0E0E0)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +37,7 @@ fun ChatScreen(
     onBackClick: () -> Unit,
     chatViewModel: ChatViewModel = viewModel()
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     var messageText by remember { mutableStateOf("") }
     val messages by chatViewModel.messages.collectAsState()
     val error by chatViewModel.error.collectAsState()
@@ -48,6 +47,7 @@ fun ChatScreen(
     // Start listening to messages
     LaunchedEffect(user.uid) {
         chatViewModel.startListeningToMessages(user.uid)
+        chatViewModel.markMessagesAsRead(user.uid)
     }
 
     // Scroll to bottom when new message is added
@@ -58,6 +58,7 @@ fun ChatScreen(
     }
 
     Scaffold(
+        containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -75,25 +76,31 @@ fun ChatScreen(
                         )
                         Text(
                             text = "${user.firstName} ${user.lastName}",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colorScheme.onPrimary
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = colorScheme.onPrimary
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = LightBlue,
-                    titleContentColor = Color.Black,
-                    navigationIconContentColor = Color.Black
+                    containerColor = colorScheme.primary,
+                    titleContentColor = colorScheme.onPrimary,
+                    navigationIconContentColor = colorScheme.onPrimary
                 )
             )
         },
         bottomBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
+                color = colorScheme.surface,
                 tonalElevation = 4.dp
             ) {
                 Row(
@@ -105,11 +112,21 @@ fun ChatScreen(
                     OutlinedTextField(
                         value = messageText,
                         onValueChange = { messageText = it },
-                        placeholder = { Text("Type a message") },
+                        placeholder = { 
+                            Text(
+                                "Type a message",
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .padding(end = 8.dp),
-                        maxLines = 4
+                        maxLines = 4,
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            containerColor = colorScheme.surface,
+                            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.12f),
+                            focusedBorderColor = colorScheme.primary
+                        )
                     )
                     FloatingActionButton(
                         onClick = {
@@ -118,8 +135,8 @@ fun ChatScreen(
                                 messageText = ""
                             }
                         },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = colorScheme.primary,
+                        contentColor = colorScheme.onPrimary
                     ) {
                         Icon(Icons.Default.Send, contentDescription = "Send message")
                     }
@@ -131,11 +148,12 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(colorScheme.background)
         ) {
             if (error != null) {
                 Text(
                     text = error ?: "",
-                    color = MaterialTheme.colorScheme.error,
+                    color = colorScheme.error,
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(16.dp)
@@ -167,7 +185,9 @@ fun MessageBubble(
     message: Message,
     isFromCurrentUser: Boolean
 ) {
-    val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val colorScheme = MaterialTheme.colorScheme
+    val dateFormat = remember { SimpleDateFormat("hh:mm a", Locale.getDefault()) }
+    val isDark = isSystemInDarkTheme()
     
     Column(
         modifier = Modifier
@@ -176,7 +196,10 @@ fun MessageBubble(
         horizontalAlignment = if (isFromCurrentUser) Alignment.End else Alignment.Start
     ) {
         Surface(
-            color = if (isFromCurrentUser) SentMessageColor else ReceivedMessageColor,
+            color = if (isFromCurrentUser) 
+                if (isDark) DarkSentBubble else LightSentBubble
+            else 
+                if (isDark) DarkReceivedBubble else LightReceivedBubble,
             shape = RoundedCornerShape(
                 topStart = 16.dp,
                 topEnd = 16.dp,
@@ -190,12 +213,12 @@ fun MessageBubble(
             ) {
                 Text(
                     text = message.text,
-                    color = if (isFromCurrentUser) Color.White else Color.Black,
+                    color = if (isDark) DarkTextPrimary else LightTextPrimary,
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Text(
                     text = dateFormat.format(Date(message.timestamp)),
-                    color = if (isFromCurrentUser) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.6f),
+                    color = if (isDark) DarkTextSecondary else LightTextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.align(Alignment.End),
                     textAlign = TextAlign.End
