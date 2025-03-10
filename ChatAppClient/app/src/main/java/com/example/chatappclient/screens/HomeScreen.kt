@@ -55,15 +55,10 @@ fun HomeScreen(
     val filteredUsers = users.filter {
         it.displayName.contains(searchQuery.text, ignoreCase = true) ||
         it.email.contains(searchQuery.text, ignoreCase = true)
-    }.sortedWith(
-        compareByDescending<User> { user -> 
-            // First sort by unread messages
-            if (user.lastMessage?.isRead == false) 1 else 0
-        }.thenByDescending { user -> 
-            // Then by timestamp
-            user.lastMessage?.timestamp ?: 0
-        }
-    )
+    }.sortedBy { user -> 
+        // Sort by name
+        "${user.firstName} ${user.lastName}"
+    }
 
     Scaffold(
         containerColor = colorScheme.background,
@@ -240,17 +235,13 @@ fun UserItem(
     onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-    val isUnread = user.lastMessage?.isRead == false && user.lastMessage.senderId != currentUserId
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
-        color = if (isUnread) 
-            colorScheme.primaryContainer.copy(alpha = 0.12f)
-        else colorScheme.surface,
+        color = colorScheme.surface,
         shadowElevation = 2.dp,
         onClick = onClick
     ) {
@@ -279,55 +270,14 @@ fun UserItem(
                     style = MaterialTheme.typography.bodyLarge,
                     color = colorScheme.onSurface
                 )
-                user.lastMessage?.let { lastMessage ->
-                    Text(
-                        text = lastMessage.text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                } ?: Text(
+                Text(
                     text = user.email,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-
-            if (user.lastMessage != null) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    Text(
-                        text = formatTimestamp(user.lastMessage.timestamp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    if (!user.lastMessage.isRead) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(
-                                    color = AccentColor,
-                                    shape = CircleShape
-                                )
-                        )
-                    }
-                }
-            }
         }
-    }
-}
-
-private fun formatTimestamp(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-    
-    return when {
-        diff < 60_000 -> "Just now" // less than 1 minute
-        diff < 3600_000 -> "${diff / 60_000}m" // less than 1 hour
-        diff < 86400_000 -> "${diff / 3600_000}h" // less than 24 hours
-        else -> SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(timestamp))
     }
 } 

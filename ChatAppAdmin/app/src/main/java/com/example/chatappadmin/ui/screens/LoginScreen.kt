@@ -36,6 +36,7 @@ fun LoginScreen(
             text = "Welcome back Admin!\nGlad to see you, Again!",
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Start,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 32.dp)
@@ -103,7 +104,10 @@ fun LoginScreen(
                 .padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.Center
         ) {
-            Text("Don't have an account? ")
+            Text(
+                text = "Don't have an account? ",
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Text(
                 text = "Register Now",
                 color = MaterialTheme.colorScheme.primary,
@@ -111,4 +115,4 @@ fun LoginScreen(
             )
         }
     }
-} 
+}

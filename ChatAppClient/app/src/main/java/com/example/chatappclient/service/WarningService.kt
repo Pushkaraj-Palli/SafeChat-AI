@@ -12,7 +12,7 @@ class WarningService {
     private val firestore = FirebaseFirestore.getInstance()
     
     companion object {
-        const val MAX_WARNINGS = 3
+        const val MAX_WARNINGS = 1000
         private const val BLOCK_DURATION_HOURS = 24L
     }
 

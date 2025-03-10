@@ -57,6 +57,7 @@ class ChatViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val chatId = getChatId(otherUserId)
+                val currentUserId = currentUser?.uid ?: return@launch
                 
                 firestore.collection("chats")
                     .document(chatId)
@@ -71,13 +72,17 @@ class ChatViewModel : ViewModel() {
 
                         if (snapshot != null) {
                             val messageList = snapshot.documents.mapNotNull { doc ->
-                                doc.toObject(Message::class.java)
+                                // Ensure receiverId is properly set based on the chat participants
+                                val message = doc.toObject(Message::class.java)
+                                message?.copy(
+                                    receiverId = if (message.senderId == currentUserId) otherUserId else currentUserId
+                                )
                             }
                             _messages.value = messageList
 
                             // Check for new messages and show notifications
                             messageList.firstOrNull()?.let { latestMessage ->
-                                if (latestMessage.senderId != currentUser?.uid) {
+                                if (latestMessage.senderId != currentUserId) {
                                     // Mark message as read since we're in the chat
                                     markMessagesAsRead(otherUserId)
                                     // Still show notification in case app is in background
@@ -108,25 +113,33 @@ class ChatViewModel : ViewModel() {
                     // Check message for violations
                     val violations = MessageFilter.checkMessage(text)
                     
+                    // Create message with explicit sender and receiver IDs
                     val message = Message(
                         id = firestore.collection("chats").document().id,
                         senderId = user.uid,
-                        receiverId = receiverId,
+                        receiverId = receiverId,  // Explicitly set receiver ID
                         text = text,
                         timestamp = System.currentTimeMillis()
                     )
 
                     // Handle violations if found
                     if (violations.hasViolation()) {
+                        // Create violation with same sender and receiver IDs as the message
                         val messageViolation = MessageViolation(
                             messageId = message.id,
-                            senderId = user.uid,
-                            receiverId = receiverId,
+                            senderId = message.senderId,  // Use message's sender ID
+                            receiverId = message.receiverId,  // Use message's receiver ID
                             message = text,
                             hasBullyWords = violations.hasBullyWords,
                             hasSexualHarassmentWords = violations.hasSexualHarassmentWords,
                             hasBadWords = violations.hasBadWords
                         )
+
+                        // Store violation in Firebase first
+                        firestore.collection("violations")
+                            .document(message.id)
+                            .set(messageViolation.toMap())
+                            .await()
 
                         // Check if message should be blocked
                         val allowMessage = warningService.handleViolation(messageViolation)
@@ -135,12 +148,6 @@ class ChatViewModel : ViewModel() {
                             _warningMessage.value = "Your message was blocked due to inappropriate content"
                             return@launch
                         }
-
-                        // Store violation in Firebase
-                        firestore.collection("violations")
-                            .document(message.id)
-                            .set(messageViolation.toMap())
-                            .await()
 
                         // Show warning to user
                         val warningCount = warningService.getViolationCount(user.uid)
@@ -157,10 +164,10 @@ class ChatViewModel : ViewModel() {
                         .set(message)
                         .await()
 
-                    // Update last message for both users
+                    // Update last message for both users with correct sender and receiver
                     updateLastMessage(message)
 
-                    Log.d("ChatViewModel", "Message sent successfully")
+                    Log.d("ChatViewModel", "Message sent successfully with receiverId: ${message.receiverId}")
                 }
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Error sending message", e)

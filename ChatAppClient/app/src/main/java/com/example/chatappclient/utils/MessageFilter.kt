@@ -109,50 +109,82 @@ object MessageFilter {
     }
 
     private suspend fun fetchAllWords() {
-        // Fetch initial words from Firestore
-        val bullyWordsDoc = firestore.collection("filtered_words")
-            .document("bully_words")
-            .get()
-            .await()
-
-        val sexualHarassmentWordsDoc = firestore.collection("filtered_words")
-            .document("sexual_harassment_words")
-            .get()
-            .await()
-
-        val badWordsDoc = firestore.collection("filtered_words")
-            .document("bad_words")
-            .get()
-            .await()
-
-        // Update local sets
-        bullyWords = (bullyWordsDoc.get("words") as? List<String>)?.toSet() ?: setOf()
-        sexualHarassmentWords = (sexualHarassmentWordsDoc.get("words") as? List<String>)?.toSet() ?: setOf()
-        badWords = (badWordsDoc.get("words") as? List<String>)?.toSet() ?: setOf()
-
-        // Initialize with default sets if empty
-        if (bullyWords.isEmpty()) {
+        try {
+            // Define our comprehensive word sets
             val defaultBullyWords = setOf(
-                "loser", "stupid", "dumb", "idiot", "worthless", "ugly",
-                "fat", "wimp", "failure", "pathetic", "weak", "coward"
+                "loser", "stupid", "idiot", "dumb", "worthless", "useless", "freak", "weirdo",
+                "annoying", "ugly", "fat", "skinny", "disgusting", "lame", "hate you", "moron",
+                "pathetic", "kill yourself", "kys", "nobody likes you", "shut up", "fool", "weakling",
+                "clown", "dumbass", "sucker", "trash", "pest", "creep", "laughingstock", "disgrace",
+                "ignorant", "repulsive", "boring", "gross", "obnoxious", "embarrassment",
+                "abnormal", "lowlife", "scumbag", "joke", "brainless", "dense", "two-faced",
+                "failure", "worm", "scaredy-cat", "fake", "inferior", "coward", "go die",
+                "end yourself", "kill urself", "ur pathetic", "ur worthless", "no one cares",
+                "everyone hates you", "just die", "disappear", "go away forever", "ur a mistake",
+                "waste of space", "better off dead", "should never been born", "ur life is a joke",
+                "hope you die", "end it", "do us all a favor", "ur nothing", "meaningless",
+                "insignificant", "unwanted", "unloved", "friendless", "hopeless", "good for nothing"
             )
-            updateBullyWords(defaultBullyWords)
-        }
 
-        if (sexualHarassmentWords.isEmpty()) {
             val defaultSexualHarassmentWords = setOf(
-                // Add appropriate default words
-                "inappropriate"
+                "sexy", "hot stuff", "babe", "slut", "whore", "pervert", "nudes", "sugar daddy",
+                "dtf", "down to fuck", "seduce", "naughty", "strip", "flirt", "molest", "harass",
+                "creepy", "stalker", "lewd", "expose yourself", "horny", "kiss me", "breasts",
+                "lingerie", "booty", "fondle", "caress", "hump", "touch me", "lap dance", "groping",
+                "undress", "porn", "spank", "mistress", "sugar baby", "orgasm", "dirty talk",
+                "fetish", "kinky", "sexual favors", "dominate", "lust", "thirsty", "xxx", "erotic",
+                "hookup", "one night stand", "strip club", "pleasure", "moan", "send pics",
+                "send nudes", "show me", "take it off", "what you wearing", "wanna see",
+                "lets have fun", "come over", "netflix and chill", "friends with benefits",
+                "fwb", "casual fun", "no strings", "body count", "smash", "pound", "bang",
+                "fuck buddy", "booty call", "hit it", "get it on", "make love", "get busy",
+                "get lucky", "hook up", "casual sex", "friends plus", "bedroom fun"
             )
-            updateSexualHarassmentWords(defaultSexualHarassmentWords)
-        }
 
-        if (badWords.isEmpty()) {
             val defaultBadWords = setOf(
-                // Add appropriate default words
-                "inappropriate"
+                "fuck", "fucking", "fucker", "motherfucker", "mf", "motherfucking", "fucked",
+                "shit", "shitting", "shithead", "bullshit", "horseshit", "ass", "asshole",
+                "bitch", "bitching", "son of a bitch", "sob", "dick", "dickhead", "cock",
+                "pussy", "cunt", "bastard", "damn", "goddamn", "dammit", "hell", "piss",
+                "pissed", "pisser", "prick", "wanker", "twat", "tits", "boobs", "nuts",
+                "balls", "jackass", "douchebag", "douche", "asshat", "dipshit", "fuckwit",
+                "motherfcker", "fck", "fuk", "fuq", "fvck", "sh1t", "b1tch", "d1ck",
+                "p*ssy", "c*nt", "a$$", "@ss", "asshole", "@sshole", "b!tch", "f*ck",
+                "sh!t", "p!ss", "pr!ck", "d!ck", "b@stard", "f@ck", "sh*t", "p*ss",
+                "pr*ck", "d*ck", "b*tch", "f**k", "sh**", "p**s", "pr**k", "d**k"
             )
-            updateBadWords(defaultBadWords)
+
+            // Force update all word sets in Firestore
+            Log.d("MessageFilter", "Updating all word sets in Firestore...")
+            
+            // Update bully words
+            firestore.collection("filtered_words")
+                .document("bully_words")
+                .set(mapOf("words" to defaultBullyWords.toList()))
+                .await()
+            bullyWords = defaultBullyWords
+            Log.d("MessageFilter", "Updated bully words in Firestore")
+
+            // Update sexual harassment words
+            firestore.collection("filtered_words")
+                .document("sexual_harassment_words")
+                .set(mapOf("words" to defaultSexualHarassmentWords.toList()))
+                .await()
+            sexualHarassmentWords = defaultSexualHarassmentWords
+            Log.d("MessageFilter", "Updated sexual harassment words in Firestore")
+
+            // Update bad words
+            firestore.collection("filtered_words")
+                .document("bad_words")
+                .set(mapOf("words" to defaultBadWords.toList()))
+                .await()
+            badWords = defaultBadWords
+            Log.d("MessageFilter", "Updated bad words in Firestore")
+
+            Log.d("MessageFilter", "All word sets have been updated in Firestore")
+        } catch (e: Exception) {
+            Log.e("MessageFilter", "Error updating word sets in Firestore", e)
+            throw Exception("Failed to update word sets in Firestore: ${e.message}")
         }
     }
 
@@ -200,20 +232,13 @@ object MessageFilter {
                 continue
             }
 
-            // Check for partial matches (substrings)
-            wordSet.forEach { bannedWord ->
-                if (word.length >= 3 && (word.contains(bannedWord) || bannedWord.contains(word))) {
-                    foundWords.add(word)
-                }
-            }
-
             // Check for variations of each banned word
             wordSet.forEach { bannedWord ->
                 val variations = generateWordVariations(bannedWord)
                 if (variations.any { variation -> 
-                    word.contains(variation) || 
-                    variation.contains(word) ||
-                    calculateSimilarity(word, variation) >= 0.8 // 80% similarity threshold
+                    // Only check for exact matches or if the word contains the banned word
+                    word == variation || 
+                    (word.length > variation.length && word.contains(variation))
                 }) {
                     foundWords.add(word)
                 }

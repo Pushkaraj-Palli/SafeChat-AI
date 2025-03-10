@@ -21,7 +21,9 @@ class MainActivity : ComponentActivity() {
         auth = Firebase.auth
 
         setContent {
-            ChatAppAdminTheme {
+            var darkTheme by remember { mutableStateOf(false) }
+
+            ChatAppAdminTheme(darkTheme = darkTheme) {
                 val navController = rememberNavController()
                 val startDestination = if (auth.currentUser != null) "home" else "login"
 
@@ -36,7 +38,12 @@ class MainActivity : ComponentActivity() {
                         RegisterScreen(navController = navController, auth = auth)
                     }
                     composable("home") {
-                        HomeScreen(navController = navController, auth = auth)
+                        HomeScreen(
+                            navController = navController,
+                            auth = auth,
+                            isDarkTheme = darkTheme,
+                            onThemeChange = { darkTheme = it }
+                        )
                     }
                 }
             }

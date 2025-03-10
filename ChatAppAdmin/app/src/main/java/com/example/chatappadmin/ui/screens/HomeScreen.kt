@@ -8,35 +8,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.example.chatappadmin.ui.components.Header
+import com.example.chatappadmin.ui.components.AdminDashboardScreen
 
 @Composable
 fun HomeScreen(
     navController: NavController,
-    auth: FirebaseAuth
+    auth: FirebaseAuth,
+    isDarkTheme: Boolean,
+    onThemeChange: (Boolean) -> Unit
 ) {
-    val currentUser = auth.currentUser
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Text(
-            text = "Welcome ${currentUser?.email ?: "User"}!",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            Header(
+                title = "Chat Admin",
+                onThemeChange = { onThemeChange(!isDarkTheme) },
+                onSignOut = {
+                    auth.signOut()
+                    navController.navigate("login") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                },
+                isDarkTheme = isDarkTheme
+            )
 
-        Button(
-            onClick = {
-                auth.signOut()
-                navController.navigate("login") {
-                    popUpTo("home") { inclusive = true }
-                }
+            // Content area
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                AdminDashboardScreen()
             }
-        ) {
-            Text("Sign Out")
         }
     }
-} 
+}

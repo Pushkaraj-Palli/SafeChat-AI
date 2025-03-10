@@ -38,7 +38,8 @@ fun RegisterScreen(
     ) {
         Text(
             text = "Create New Account",
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -46,7 +47,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = firstName,
             onValueChange = { firstName = it.trim() },
-            label = { Text("First Name") },
+            label = { Text("First Name", color = MaterialTheme.colorScheme.onBackground) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -54,7 +55,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = lastName,
             onValueChange = { lastName = it.trim() },
-            label = { Text("Last Name") },
+            label = { Text("Last Name", color = MaterialTheme.colorScheme.onBackground) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -62,7 +63,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it.trim() },
-            label = { Text("Email") },
+            label = { Text("Email", color = MaterialTheme.colorScheme.onBackground) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -70,7 +71,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text("Password", color = MaterialTheme.colorScheme.onBackground) },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -79,7 +80,7 @@ fun RegisterScreen(
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password") },
+            label = { Text("Confirm Password", color = MaterialTheme.colorScheme.onBackground) },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -176,9 +177,12 @@ fun RegisterScreen(
         }
 
         TextButton(
-            onClick = { navController.navigate("login") }
+            onClick = { navController.navigate("login") },
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.onBackground
+            )
         ) {
             Text("Already have an account? Sign In")
         }
     }
-} 
+}
